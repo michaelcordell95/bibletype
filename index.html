@@ -2,26 +2,109 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>BibleType | Online</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BibleType | Chapter Master</title>
     <style>
-        body { background-color: #323437; color: #646669; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; padding-top: 50px; margin: 0; }
-        #search-box { margin-bottom: 40px; display: flex; gap: 10px; }
-        input[type="text"]#bible-ref { background: #2c2e31; border: 1px solid #444; color: #e2b714; padding: 10px; font-family: monospace; width: 250px; outline: none; }
-        button#fetch-btn { background: #e2b714; color: #323437; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; }
-        #stats-bar { margin-bottom: 20px; font-size: 20px; color: #e2b714; display: flex; gap: 40px; height: 30px; }
-        #display { font-size: 28px; max-width: 900px; line-height: 1.6; text-align: center; min-height: 200px; padding: 20px; }
+        body { 
+            background-color: #323437; 
+            color: #646669; 
+            font-family: 'Courier New', monospace; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 20px;
+            margin: 0; 
+            overflow-x: hidden;
+        }
+
+        #search-box {
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        input[type="text"]#bible-ref {
+            background: #2c2e31;
+            border: 1px solid #444;
+            color: #e2b714;
+            padding: 12px;
+            font-family: monospace;
+            width: 80%;
+            max-width: 250px;
+            outline: none;
+            font-size: 16px;
+        }
+
+        button#fetch-btn {
+            background: #e2b714;
+            color: #323437;
+            border: none;
+            padding: 12px 20px;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 4px;
+        }
+
+        #stats-bar {
+            margin-bottom: 20px;
+            font-size: 18px;
+            color: #e2b714;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            width: 100%;
+        }
+
+        #display { 
+            font-size: 22px; 
+            max-width: 900px; 
+            line-height: 1.5; 
+            text-align: center;
+            min-height: 150px;
+            padding: 10px;
+            word-wrap: break-word;
+        }
+
         span { color: #646669; border-bottom: 2px solid transparent; }
         .correct { color: #d1d0c5; }
         .incorrect { color: #ca4754; background-color: #3e2b2d; border-bottom: 2px solid #ca4754; }
-        #hidden-input { width: 80%; background: #2c2e31; border: 1px solid #444; color: #d1d0c5; padding: 10px; font-family: monospace; font-size: 18px; outline: none; }
-        #hint { margin-top: 30px; font-size: 12px; color: #555; text-align: center; }
+        
+        #hidden-input { 
+            width: 90%;
+            max-width: 600px;
+            background: #2c2e31;
+            border: 1px solid #444;
+            color: #d1d0c5;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 16px;
+            outline: none;
+            border-radius: 4px;
+        }
+
+        #hint {
+            margin-top: 20px;
+            font-size: 11px;
+            color: #555;
+            text-align: center;
+        }
+
+        /* Laptop/Desktop Adjustments */
+        @media (min-width: 600px) {
+            #display { font-size: 32px; }
+            body { padding-top: 60px; }
+            #search-box { margin-bottom: 40px; }
+        }
     </style>
 </head>
 <body>
 
     <div id="search-box">
         <input type="text" id="bible-ref" placeholder="John 3">
-        <button id="fetch-btn" onclick="fetchVerses()">LOAD</button>
+        <button id="fetch-btn" onclick="fetchVerses()">LOAD CHAPTER</button>
     </div>
 
     <div id="stats-bar">
@@ -29,8 +112,13 @@
         <span id="progress-display">Verse: 0/0</span>
     </div>
 
-    <div id="display">Type a chapter and hit Load...</div>
-    <input type="text" id="hidden-input" placeholder="Start typing..." autocomplete="off">
+    <div id="display">Enter a chapter to begin...</div>
+    
+    <input type="text" id="hidden-input" placeholder="Start typing here..." autocomplete="off">
+
+    <div id="hint">
+        Finish the verse to move on automatically!
+    </div>
 
     <script>
         let currentVerses = [];
@@ -49,38 +137,39 @@
             const ref = refInput.value.trim();
             if (!ref) return;
             displayEl.innerText = "Loading " + ref + "...";
-            
             try {
-                // FETCHES FROM A PUBLIC API (No Python Server Needed!)
-                const response = await fetch(`https://bible-api.com/${ref}`);
+                const response = await fetch(`https://bible-api.com/${encodeURIComponent(ref)}`);
                 const data = await response.json();
-                
                 if (data.verses) {
                     currentVerses = data.verses.map(v => v.text.trim());
-                    currentIndex = 0;
-                    startTime = null;
-                    totalCharsTyped = 0;
-                    loadVerse();
+                    resetGame();
                 } else {
-                    displayEl.innerText = "Error finding that chapter.";
+                    displayEl.innerText = "Chapter not found.";
                 }
             } catch (err) {
-                displayEl.innerText = "Check your internet connection.";
+                displayEl.innerText = "Error. Check connection.";
             }
+        }
+
+        function resetGame() {
+            currentIndex = 0;
+            startTime = null;
+            totalCharsTyped = 0;
+            loadVerse();
+            inputEl.focus();
         }
 
         function loadVerse() {
             if (currentIndex >= currentVerses.length) {
                 const mins = (new Date() - startTime) / 60000;
                 const finalWPM = Math.round((totalCharsTyped / 5) / mins) || 0;
-                displayEl.innerHTML = `<div style="color: #e2b714">Chapter Complete!<br>Final Speed: ${finalWPM} WPM</div>`;
+                displayEl.innerHTML = `<div style="color: #e2b714">Complete!<br>Speed: ${finalWPM} WPM</div>`;
                 return;
             }
             activeVerseText = currentVerses[currentIndex];
             displayEl.innerHTML = activeVerseText.split('').map(char => `<span>${char}</span>`).join('');
             progressEl.innerText = `Verse: ${currentIndex + 1}/${currentVerses.length}`;
             inputEl.value = "";
-            inputEl.focus();
         }
 
         inputEl.addEventListener('input', () => {
@@ -89,19 +178,30 @@
             const typed = inputEl.value;
 
             spans.forEach((span, i) => {
-                if (typed[i] == null) span.className = '';
-                else if (typed[i] === span.innerText) span.className = 'correct';
-                else span.className = 'incorrect';
+                let charExpected = span.innerText;
+                let charTyped = typed[i];
+
+                if (charTyped == null) {
+                    span.className = '';
+                } else {
+                    // Normalize quotes for mobile/special keyboards
+                    let normExp = charExpected.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+                    let normTyp = charTyped.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+
+                    if (normTyp === normExp) {
+                        span.className = 'correct';
+                    } else {
+                        span.className = 'incorrect';
+                    }
+                }
             });
 
-            // WPM calculation
             const mins = (new Date() - startTime) / 60000;
             if (mins > 0) {
                 const wpm = Math.round(((totalCharsTyped + typed.length) / 5) / mins);
                 wpmEl.innerText = `WPM: ${wpm}`;
             }
 
-            // Move to next verse based on length
             if (typed.length >= activeVerseText.length && activeVerseText.length > 0) {
                 totalCharsTyped += activeVerseText.length;
                 currentIndex++;
@@ -109,8 +209,4 @@
             }
         });
 
-        refInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') fetchVerses(); });
-        window.addEventListener('click', () => { if(document.activeElement !== refInput) inputEl.focus(); });
-    </script>
-</body>
-</html>
+        refInput.addEventListener('keypress', (e) => { if (e.key === 'Enter')
