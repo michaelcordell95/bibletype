@@ -35,7 +35,7 @@
             width: 80%;
             max-width: 250px;
             outline: none;
-            font-size: 16px;
+            font-size: 16px; /* Prevents mobile zoom */
         }
 
         button#fetch-btn {
@@ -92,7 +92,7 @@
             text-align: center;
         }
 
-        /* Laptop/Desktop Adjustments */
+        /* Laptop/Desktop Styling */
         @media (min-width: 600px) {
             #display { font-size: 32px; }
             body { padding-top: 60px; }
@@ -103,7 +103,7 @@
 <body>
 
     <div id="search-box">
-        <input type="text" id="bible-ref" placeholder="John 3">
+        <input type="text" id="bible-ref" placeholder="e.g. John 3">
         <button id="fetch-btn" onclick="fetchVerses()">LOAD CHAPTER</button>
     </div>
 
@@ -112,7 +112,7 @@
         <span id="progress-display">Verse: 0/0</span>
     </div>
 
-    <div id="display">Enter a chapter to begin...</div>
+    <div id="display">Enter a chapter and hit Load...</div>
     
     <input type="text" id="hidden-input" placeholder="Start typing here..." autocomplete="off">
 
@@ -136,18 +136,22 @@
         async function fetchVerses() {
             const ref = refInput.value.trim();
             if (!ref) return;
-            displayEl.innerText = "Loading " + ref + "...";
+            displayEl.innerText = "Connecting to API...";
             try {
-                const response = await fetch(`https://bible-api.com/${encodeURIComponent(ref)}`);
+                // Using KJV translation specifically
+                const url = `https://bible-api.com/${encodeURIComponent(ref)}?translation=kjv`;
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('API Error');
+                
                 const data = await response.json();
-                if (data.verses) {
+                if (data.verses && data.verses.length > 0) {
                     currentVerses = data.verses.map(v => v.text.trim());
                     resetGame();
                 } else {
-                    displayEl.innerText = "Chapter not found.";
+                    displayEl.innerText = "Could not find " + ref;
                 }
             } catch (err) {
-                displayEl.innerText = "Error. Check connection.";
+                displayEl.innerText = "Error: Check your connection.";
             }
         }
 
@@ -156,57 +160,4 @@
             startTime = null;
             totalCharsTyped = 0;
             loadVerse();
-            inputEl.focus();
-        }
-
-        function loadVerse() {
-            if (currentIndex >= currentVerses.length) {
-                const mins = (new Date() - startTime) / 60000;
-                const finalWPM = Math.round((totalCharsTyped / 5) / mins) || 0;
-                displayEl.innerHTML = `<div style="color: #e2b714">Complete!<br>Speed: ${finalWPM} WPM</div>`;
-                return;
-            }
-            activeVerseText = currentVerses[currentIndex];
-            displayEl.innerHTML = activeVerseText.split('').map(char => `<span>${char}</span>`).join('');
-            progressEl.innerText = `Verse: ${currentIndex + 1}/${currentVerses.length}`;
-            inputEl.value = "";
-        }
-
-        inputEl.addEventListener('input', () => {
-            if (!startTime) startTime = new Date();
-            const spans = displayEl.querySelectorAll('span');
-            const typed = inputEl.value;
-
-            spans.forEach((span, i) => {
-                let charExpected = span.innerText;
-                let charTyped = typed[i];
-
-                if (charTyped == null) {
-                    span.className = '';
-                } else {
-                    // Normalize quotes for mobile/special keyboards
-                    let normExp = charExpected.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
-                    let normTyp = charTyped.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
-
-                    if (normTyp === normExp) {
-                        span.className = 'correct';
-                    } else {
-                        span.className = 'incorrect';
-                    }
-                }
-            });
-
-            const mins = (new Date() - startTime) / 60000;
-            if (mins > 0) {
-                const wpm = Math.round(((totalCharsTyped + typed.length) / 5) / mins);
-                wpmEl.innerText = `WPM: ${wpm}`;
-            }
-
-            if (typed.length >= activeVerseText.length && activeVerseText.length > 0) {
-                totalCharsTyped += activeVerseText.length;
-                currentIndex++;
-                setTimeout(loadVerse, 100);
-            }
-        });
-
-        refInput.addEventListener('keypress', (e) => { if (e.key === 'Enter')
+            input
