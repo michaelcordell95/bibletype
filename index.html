@@ -21,10 +21,16 @@
         .correct { color: var(--text-light) !important; }
         .incorrect { color: var(--error) !important; background-color: #3e2b2d !important; border-radius: 2px; }
         #hidden-input { position: absolute; opacity: 0; pointer-events: none; }
+        
+        /* NEW: Caps Lock Alert Style */
+        #caps-alert { background-color: var(--error); color: white; padding: 10px; border-radius: 4px; margin-bottom: 20px; display: none; font-weight: bold; }
+
         @media (min-width: 768px) { #display { font-size: 32px; } }
     </style>
 </head>
 <body>
+
+    <div id="caps-alert">CAPS LOCK IS ON!</div>
 
     <div id="nav-header">
         <select id="lang-select">
@@ -63,13 +69,18 @@
               displayEl = document.getElementById('display'), 
               inputEl = document.getElementById('hidden-input');
 
+        // NEW: Caps Lock Detector
+        inputEl.addEventListener('keyup', (e) => {
+            const capsAlert = document.getElementById('caps-alert');
+            capsAlert.style.display = e.getModifierState('CapsLock') ? 'block' : 'none';
+        });
+
         function initMenus() {
             bookSel.innerHTML = "";
             books.forEach(b => { 
                 let opt = document.createElement('option'); opt.value = b; opt.innerText = b; bookSel.appendChild(opt); 
             });
             bookSel.value = "John";
-            
             bookSel.addEventListener('change', updateChapters);
             updateChapters();
         }
@@ -80,7 +91,6 @@
             let html = "";
             for(let i=1; i<=count; i++) { html += `<option value="${i}">Chapter ${i}</option>`; }
             chapSel.innerHTML = html;
-            // Default verse list (1-50) just so the menu isn't empty before loading
             updateVerseList(50);
         }
 
@@ -95,6 +105,7 @@
             const bookName = bookSel.value;
             const chapNum = chapSel.value;
             const targetVerse = parseInt(verseSel.value);
+            const isEasy = document.getElementById('easy-mode').checked;
             
             displayEl.innerText = `Connecting...`;
             
@@ -111,24 +122,24 @@
                     textArray = data.map(v => v.text);
                 }
                 
-                const isEasy = document.getElementById('easy-mode').checked;
                 currentVerses = textArray.map(t => {
                     let clean = t.trim().replace(/[\u00A0\u1680\u180E\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, ' ').replace(/\s+/g, ' ');
                     clean = clean.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
-                    if (isEasy) clean = clean.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
+                    
+                    // IMPROVED EASY MODE: Remove ?, !, ., ,, etc.
+                    if (isEasy) clean = clean.toLowerCase().replace(/[^a-z0-9\s]/gi, '');
+                    
                     return clean;
                 });
 
-                // DYNAMIC UPDATE: Re-fill the menu with the EXACT count from the API
                 updateVerseList(currentVerses.length);
-                
-                // Set the index and the dropdown value to match what the user originally picked
                 currentIndex = targetVerse < currentVerses.length ? targetVerse : 0;
                 verseSel.value = currentIndex;
                 
                 resetGame();
             } catch (e) { 
                 displayEl.innerText = "Error loading. Try again."; 
+                console.log(e);
             }
         }
 
