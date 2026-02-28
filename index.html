@@ -48,11 +48,13 @@
         <select id="book-select" onchange="updateChapters()"></select>
         <select id="chapter-select"></select>
         <select id="verse-select"><option>Select Chapter First</option></select>
+    </div>
+    <div style="display:flex; justify-content:center; margin-bottom:10px;">
         <button id="fetch-btn" onclick="fetchVerses()">LOAD</button>
     </div>
 
     <div class="settings-bar">
-        <label><input type="checkbox" id="easy-mode"> Easy Mode</label>
+        <label><input type="checkbox" id="easy-mode" checked> Easy Mode</label>
         <label><input type="checkbox" id="repeat-mode"> Repeat Verse</label>
         <span id="high-score-display" style="color:var(--text-light)">Best: 0 WPM</span>
         <button id="reset-score-btn" onclick="resetBestScore()">Reset Best</button>
@@ -214,7 +216,11 @@
             activeVerseText = currentVerses[currentIndex];
             renderDisplay("");
             document.getElementById('progress').innerText = `${currentIndex + 1}/${currentVerses.length}`;
+            isComposing = false;
             inputEl.value = "";
+            // Force clear any pending IME state by blur/focus cycling
+            inputEl.blur();
+            setTimeout(() => { inputEl.value = ""; inputEl.focus(); }, 10);
         }
         
         function loadNextChapter() {
@@ -237,9 +243,19 @@
             }).join('');
         }
 
+        let isComposing = false;
+        inputEl.addEventListener('compositionstart', () => { isComposing = true; });
+        inputEl.addEventListener('compositionend', () => { 
+            isComposing = false;
+            // Trigger a manual input check after composition ends
+            inputEl.dispatchEvent(new Event('input'));
+        });
+
         inputEl.addEventListener('input', () => {
+            if (isComposing) return; // Skip during IME composition
             if (!startTime) startTime = new Date();
-            const typed = inputEl.value;
+            // Strip any invisible/zero-width characters from typed value
+            const typed = inputEl.value.replace(/[\u200B\u200C\u200D\uFEFF\u00AD]/g, '');
             renderDisplay(typed);
             if (typed.length > 0 && typed[typed.length-1] !== activeVerseText[typed.length-1]) totalErrors++;
             
