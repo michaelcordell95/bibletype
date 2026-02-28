@@ -10,10 +10,13 @@
         #nav-header { margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
         select, button { background: #2c2e31; border: 1px solid #444; color: var(--main-yellow); padding: 10px; font-family: monospace; border-radius: 4px; cursor: pointer; }
         #fetch-btn { background: var(--main-yellow); color: var(--bg-dark); border: none; font-weight: bold; padding: 10px 25px; }
-        .settings-bar { margin-bottom: 20px; display: flex; gap: 20px; font-size: 14px; align-items: center; }
+        .settings-bar { margin-bottom: 20px; display: flex; gap: 15px; font-size: 14px; align-items: center; flex-wrap: wrap; justify-content: center; }
         #stats-bar { margin-bottom: 20px; font-size: 16px; color: var(--main-yellow); display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; }
         .stat-box { background: #2c2e31; padding: 8px 15px; border-radius: 4px; border: 1px solid #444; min-width: 85px; text-align: center; }
-        #display { font-size: 24px; max-width: 900px; line-height: 1.6; text-align: center; min-height: 150px; padding: 20px; position: relative; }
+        
+        /* UPDATED: Larger Base Font Size for Mobile */
+        #display { font-size: 28px; max-width: 900px; line-height: 1.6; text-align: center; min-height: 150px; padding: 20px; position: relative; }
+        
         span { color: var(--text-muted); border: none !important; background: none !important; }
         .current-char { position: relative; color: var(--text-muted) !important; }
         .current-char::before { content: ""; position: absolute; left: -1px; top: 15%; height: 70%; width: 2px; background-color: var(--main-yellow); animation: blink 0.8s infinite; }
@@ -21,11 +24,11 @@
         .correct { color: var(--text-light) !important; }
         .incorrect { color: var(--error) !important; background-color: #3e2b2d !important; border-radius: 2px; }
         #hidden-input { position: absolute; opacity: 0; pointer-events: none; }
-        
-        /* NEW: Caps Lock Alert Style */
         #caps-alert { background-color: var(--error); color: white; padding: 10px; border-radius: 4px; margin-bottom: 20px; display: none; font-weight: bold; }
-
-        @media (min-width: 768px) { #display { font-size: 32px; } }
+        #reset-score-btn { background: #ca4754; color: white; border: none; padding: 5px 10px; font-size: 12px; cursor: pointer; border-radius: 4px; }
+        
+        /* UPDATED: Much Larger Desktop Font Size */
+        @media (min-width: 768px) { #display { font-size: 44px; } }
     </style>
 </head>
 <body>
@@ -45,7 +48,9 @@
 
     <div class="settings-bar">
         <label><input type="checkbox" id="easy-mode"> Easy Mode</label>
+        <label><input type="checkbox" id="repeat-mode"> Repeat Verse</label>
         <span id="high-score-display" style="color:var(--text-light)">Best: 0 WPM</span>
+        <button id="reset-score-btn" onclick="resetBestScore()">Reset Best</button>
     </div>
 
     <div id="stats-bar">
@@ -69,11 +74,17 @@
               displayEl = document.getElementById('display'), 
               inputEl = document.getElementById('hidden-input');
 
-        // NEW: Caps Lock Detector
         inputEl.addEventListener('keyup', (e) => {
             const capsAlert = document.getElementById('caps-alert');
             capsAlert.style.display = e.getModifierState('CapsLock') ? 'block' : 'none';
         });
+
+        function resetBestScore() {
+            localStorage.setItem('bibleTypeBest', 0);
+            document.getElementById('high-score-display').innerText = `Best: 0 WPM`;
+            maxWPM = 0;
+            document.getElementById('max-wpm').innerText = 0;
+        }
 
         function initMenus() {
             bookSel.innerHTML = "";
@@ -125,10 +136,7 @@
                 currentVerses = textArray.map(t => {
                     let clean = t.trim().replace(/[\u00A0\u1680\u180E\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, ' ').replace(/\s+/g, ' ');
                     clean = clean.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
-                    
-                    // IMPROVED EASY MODE: Remove ?, !, ., ,, etc.
                     if (isEasy) clean = clean.toLowerCase().replace(/[^a-z0-9\s]/gi, '');
-                    
                     return clean;
                 });
 
@@ -144,7 +152,7 @@
         }
 
         function resetGame() {
-            startTime = null; totalCharsTyped = 0; totalErrors = 0; maxWPM = 0;
+            startTime = null; totalCharsTyped = 0; totalErrors = 0;
             loadVerse();
             inputEl.focus();
         }
@@ -175,18 +183,29 @@
             if (typed.length > 0 && typed[typed.length-1] !== activeVerseText[typed.length-1]) totalErrors++;
             const mins = (new Date() - startTime) / 60000;
             const currentWPM = Math.round(((totalCharsTyped + typed.length) / 5) / mins) || 0;
+            
             if (currentWPM > maxWPM && mins > 0.1) { 
                 maxWPM = currentWPM; 
-                document.getElementById('max-wpm').innerText = maxWPM; 
-                localStorage.setItem('bibleTypeBest', maxWPM);
+                document.getElementById('max-wpm').innerText = maxWPM;
+                let best = localStorage.getItem('bibleTypeBest') || 0;
+                if (maxWPM > best) {
+                    localStorage.setItem('bibleTypeBest', maxWPM);
+                    document.getElementById('high-score-display').innerText = `Best: ${maxWPM} WPM`;
+                }
             }
+            
             const acc = Math.max(0, Math.round(((totalCharsTyped + typed.length - totalErrors) / (totalCharsTyped + typed.length)) * 100)) || 100;
             document.getElementById('wpm').innerText = currentWPM;
             document.getElementById('accuracy').innerText = acc + "%";
 
             if (typed.length >= activeVerseText.length && activeVerseText.length > 0) {
                 totalCharsTyped += activeVerseText.length;
-                currentIndex++;
+                
+                const repeatMode = document.getElementById('repeat-mode').checked;
+                if (!repeatMode) {
+                    currentIndex++;
+                }
+                
                 setTimeout(loadVerse, 50);
             }
         });
